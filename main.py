@@ -1,4 +1,28 @@
+import os
+from pathlib import Path
 
+import streamlit as st
+from dotenv import load_dotenv
+from groq import Groq
+
+from ingest import (
+    BASE_DIR,
+    DOCUMENTS_DIR,
+    get_collection,
+    ingest_documents,
+    retrieve_context,
+)
+
+load_dotenv(
+    dotenv_path=BASE_DIR / ".env",
+    override=True
+)
+
+st.set_page_config(
+    page_title="Indala College | Admission Assistant",
+    page_icon="🎓",
+    layout="wide"
+)
 # --------------------------------------------------
 # MODERN STREAMLIT USER INTERFACE
 # --------------------------------------------------
