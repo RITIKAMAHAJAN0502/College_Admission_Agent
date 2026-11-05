@@ -1,322 +1,404 @@
 
-import os
-from pathlib import Path
-
-import streamlit as st
-from dotenv import load_dotenv
-from groq import Groq
-
-from ingest import (
-    BASE_DIR,
-    DOCUMENTS_DIR,
-    get_collection,
-    ingest_documents,
-    retrieve_context,
-)
-
-# Load environment variables from project folder
-load_dotenv(
-    dotenv_path=BASE_DIR / ".env",
-    override=True
-)
-
-# Streamlit configuration
-st.set_page_config(
-    page_title="Indala College | Admission Assistant",
-    page_icon="🎓",
-    layout="centered"
-)
-
-
 # --------------------------------------------------
-# CUSTOM FRONTEND COLOURS
+# MODERN STREAMLIT USER INTERFACE
 # --------------------------------------------------
 
 st.markdown("""
 <style>
 
-/* Main page background and default text */
+/* Import fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* Global */
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
 .stApp {
-    background: linear-gradient(135deg, #F3F0FF 0%, #EEF2FF 100%);
+    background: #F6F7FC;
     color: #1E1B4B;
 }
 
-/* Main headings */
+/* Remove default header */
+header[data-testid="stHeader"] {
+    background: transparent;
+}
+
+/* Main container */
+.block-container {
+    max-width: 1100px;
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+}
+
+/* Headings */
 h1, h2, h3 {
-    color: #172554 !important;
+    color: #1E1B4B !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.7px;
+}
+
+/* Hero section */
+.hero {
+    background: linear-gradient(
+        120deg,
+        #312E81,
+        #5B21B6,
+        #7C3AED
+    );
+    padding: 38px;
+    border-radius: 24px;
+    color: white;
+    margin-bottom: 28px;
+    box-shadow: 0 12px 35px rgba(91, 33, 182, 0.20);
+}
+
+.hero h1 {
+    color: white !important;
+    font-size: 35px !important;
+    margin-bottom: 8px;
+}
+
+.hero p {
+    color: #EDE9FE !important;
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.hero-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: white;
+    padding: 7px 14px;
+    border-radius: 30px;
+    font-size: 12px;
+    margin-bottom: 15px;
+}
+
+/* Feature cards */
+.feature-card {
+    background: white;
+    padding: 20px;
+    border-radius: 18px;
+    border: 1px solid #E9E5F5;
+    box-shadow: 0 4px 16px rgba(30, 27, 75, 0.04);
+    min-height: 115px;
+}
+
+.feature-icon {
+    font-size: 25px;
+    margin-bottom: 9px;
+}
+
+.feature-title {
     font-weight: 700;
+    color: #312E81;
+    font-size: 14px;
 }
 
-/* Sidebar background */
+.feature-desc {
+    font-size: 12px;
+    color: #77748F;
+    margin-top: 5px;
+}
+
+/* Sidebar */
 [data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #172554 0%, #312E81 100%);
+    background: linear-gradient(
+        180deg,
+        #1E1B4B,
+        #312E81
+    );
 }
 
-/* Sidebar text */
+[data-testid="stSidebar"] * {
+    color: white;
+}
+
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3,
-[data-testid="stSidebar"] p,
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] .stMarkdown {
-    color: #FFFFFF !important;
+[data-testid="stSidebar"] h3 {
+    color: white !important;
 }
 
-/* Keep the PDF uploader readable */
+/* Sidebar divider */
+[data-testid="stSidebar"] hr {
+    border-color: rgba(255,255,255,0.2);
+}
+
+/* Sidebar uploader */
 [data-testid="stSidebar"] [data-testid="stFileUploader"] {
-    background: #FFFFFF;
-    border: 1px solid #C4B5FD;
-    border-radius: 12px;
+    background: rgba(255,255,255,0.10);
+    border: 1px dashed #A78BFA;
+    border-radius: 14px;
     padding: 10px;
 }
+
 [data-testid="stSidebar"] [data-testid="stFileUploader"] * {
-    color: #312E81 !important;
+    color: white !important;
+}
+
+/* Sidebar metric */
+[data-testid="stSidebar"] [data-testid="stMetric"] {
+    background: rgba(255,255,255,0.10);
+    padding: 15px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.16);
+}
+
+[data-testid="stSidebar"] [data-testid="stMetricLabel"],
+[data-testid="stSidebar"] [data-testid="stMetricValue"] {
+    color: white !important;
 }
 
 /* Buttons */
 .stButton > button {
-    background: #6D28D9;
-    color: #FFFFFF !important;
-    border: 1px solid #6D28D9;
-    border-radius: 10px;
+    background: linear-gradient(
+        110deg,
+        #6D28D9,
+        #7C3AED
+    );
+    color: white !important;
+    border: none;
+    border-radius: 12px;
+    padding: 11px 18px;
     font-weight: 600;
-    transition: background 0.2s ease, border-color 0.2s ease;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(109,40,217,0.16);
 }
+
 .stButton > button:hover {
     background: #4C1D95;
-    border-color: #4C1D95;
-    color: #FFFFFF !important;
+    transform: translateY(-2px);
+    box-shadow: 0 7px 18px rgba(109,40,217,0.25);
+}
+
+/* Chat messages */
+[data-testid="stChatMessage"] {
+    background: white;
+    border: 1px solid #E9E5F5;
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 14px rgba(30,27,75,0.04);
 }
 
 /* Chat input */
 [data-testid="stChatInput"] {
-    background: #FFFFFF;
-    border: 2px solid #C4B5FD;
-    border-radius: 14px;
+    background: white;
+    border: 2px solid #DDD6FE;
+    border-radius: 18px;
+    box-shadow: 0 5px 20px rgba(91,33,182,0.07);
 }
+
+[data-testid="stChatInput"]:focus-within {
+    border-color: #7C3AED;
+}
+
 [data-testid="stChatInput"] textarea {
     color: #1E1B4B !important;
 }
 
-/* Chat message cards */
-[data-testid="stChatMessage"] {
-    background: rgba(255, 255, 255, 0.94);
-    border: 1px solid #DDD6FE;
+/* Expanders */
+[data-testid="stExpander"] {
+    border: 1px solid #E9E5F5;
     border-radius: 14px;
-    padding: 14px;
-    margin-bottom: 10px;
+    background: white;
 }
 
-/* Database status metric */
-[data-testid="stSidebar"] [data-testid="stMetric"] {
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+/* Alerts */
+[data-testid="stAlert"] {
     border-radius: 12px;
-    padding: 12px;
-}
-[data-testid="stSidebar"] [data-testid="stMetric"] * {
-    color: #FFFFFF !important;
 }
 
-/* Dividers and footer */
-hr {
-    border-color: #C4B5FD;
+/* Captions */
+.stCaption {
+    color: #77748F;
 }
-[data-testid="stCaptionContainer"] {
-    color: #64748B;
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding: 20px;
+    margin-top: 40px;
+    color: #77748F;
+    font-size: 12px;
+    border-top: 1px solid #E9E5F5;
+}
+
+/* Mobile */
+@media(max-width: 768px) {
+    .hero {
+        padding: 25px;
+    }
+
+    .hero h1 {
+        font-size: 27px !important;
+    }
+
+    .block-container {
+        padding: 1rem;
+    }
 }
 
 </style>
 """, unsafe_allow_html=True)
 
 
-# System instructions for the admission chatbot
-SYSTEM_PROMPT = """
-You are the admission assistance chatbot for Indala College.
+# --------------------------------------------------
+# HERO SECTION
+# --------------------------------------------------
 
-Answer using only the supplied college document excerpts.
+st.markdown("""
+<div class="hero">
 
-If the information is unavailable in the excerpts, clearly say:
-"Sorry, this information is not available in the supplied college documents.
-Please contact the Indala College Admission Office for accurate information."
+    <div class="hero-tag">
+        🎓 OFFICIAL ADMISSION ASSISTANT
+    </div>
 
-Do not invent fees, eligibility rules, admission dates, course details
-or contact information.
+    <h1>Welcome to Indala College</h1>
 
-Do not use outside knowledge or assumptions.
-Use simple, polite, student-friendly language.
-If the excerpts do not support an answer, say the information is unavailable.
-Do not create or guess page numbers or document names.
-"""
+    <p>
+        Your intelligent admission companion.
+        Get instant answers about courses, eligibility,
+        fees, admission procedures and required documents.
+    </p>
 
-# Configuration
-MAX_DISTANCE = float(os.getenv("MAX_DISTANCE", "0.75"))
-TOP_K = int(os.getenv("TOP_K", "5"))
+    <div style="
+        margin-top:20px;
+        font-size:13px;
+        color:#DDD6FE;
+    ">
+        ✨ Powered by AI &nbsp; | &nbsp;
+        📚 Official College Documents &nbsp; | &nbsp;
+        🤝 Student Support
+    </div>
 
-UNAVAILABLE = (
-    "Sorry, this information is not available in the supplied college "
-    "documents. Please contact the Indala College Admission Office "
-    "for accurate information."
-)
+</div>
+""", unsafe_allow_html=True)
 
 
 # --------------------------------------------------
-# GROQ API ANSWER GENERATION
+# FEATURE CARDS
 # --------------------------------------------------
 
-def generate_answer(question, matches):
+col1, col2, col3 = st.columns(3)
 
-    api_key = os.getenv("GROQ_API_KEY", "").strip()
+with col1:
+    st.markdown("""
+    <div class="feature-card">
+        <div class="feature-icon">📚</div>
+        <div class="feature-title">Courses</div>
+        <div class="feature-desc">
+            Explore available academic programmes.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    if not api_key:
-        raise RuntimeError(
-            "GROQ_API_KEY is missing. "
-            "Please add your Groq API key to the .env file."
-        )
+with col2:
+    st.markdown("""
+    <div class="feature-card">
+        <div class="feature-icon">📝</div>
+        <div class="feature-title">Admissions</div>
+        <div class="feature-desc">
+            Understand admission procedures.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Prepare retrieved document context
-    context_parts = []
+with col3:
+    st.markdown("""
+    <div class="feature-card">
+        <div class="feature-icon">📋</div>
+        <div class="feature-title">Requirements</div>
+        <div class="feature-desc">
+            Find eligibility and document details.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    for item in matches:
-        context_parts.append(
-            f"Source: {item['source']} | Page: {item['page']}\n"
-            f"Excerpt: {item['text']}"
-        )
 
-    context = "\n\n---\n\n".join(context_parts)
-
-    # Connect to Groq
-    client = Groq(api_key=api_key)
-
-    # Generate response
-    response = client.chat.completions.create(
-        model=os.getenv(
-            "GROQ_MODEL",
-            "openai/gpt-oss-20b"
-        ),
-        temperature=0,
-        messages=[
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"Question: {question}\n\n"
-                    f"Supplied college document excerpts:\n"
-                    f"{context}\n\n"
-                    "Answer only if the excerpts contain enough evidence. "
-                    "Do not use external knowledge."
-                )
-            }
-        ]
-    )
-
-    return response.choices[0].message.content.strip()
+st.write("")
+st.write("")
 
 
 # --------------------------------------------------
-# SAVE UPLOADED PDF DOCUMENTS
-# --------------------------------------------------
-
-def save_uploaded_files(uploaded_files):
-
-    DOCUMENTS_DIR.mkdir(parents=True, exist_ok=True)
-
-    saved = []
-
-    for uploaded_file in uploaded_files:
-
-        if not uploaded_file.name.lower().endswith(".pdf"):
-            continue
-
-        destination = (
-            DOCUMENTS_DIR / Path(uploaded_file.name).name
-        )
-
-        destination.write_bytes(
-            uploaded_file.getbuffer()
-        )
-
-        saved.append(destination)
-
-    return saved
-
-
-# --------------------------------------------------
-# STREAMLIT USER INTERFACE
-# --------------------------------------------------
-
-st.title("🎓 Indala College")
-
-st.subheader("AI Admission Assistant")
-
-st.write(
-    "Ask questions about courses, eligibility, fees, "
-    "admission procedures and required documents. "
-    "Answers are grounded in the college PDFs."
-)
-
-
-# --------------------------------------------------
-# SIDEBAR - DOCUMENT ADMINISTRATION
+# SIDEBAR - ADMINISTRATION
 # --------------------------------------------------
 
 with st.sidebar:
 
-    st.header("Document administration")
+    st.markdown("""
+    <div style="padding:10px 0 20px 0;">
+
+        <div style="font-size:32px;">🎓</div>
+
+        <h2 style="
+            color:white;
+            margin-bottom:0;
+            font-size:22px;
+        ">
+            Indala College
+        </h2>
+
+        <p style="
+            color:#C4B5FD;
+            font-size:12px;
+        ">
+            Admission Assistant Dashboard
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.divider()
+
+    st.markdown("### 📂 Document Management")
 
     st.caption(
-        "Upload official college PDF documents, "
-        "then process them."
+        "Upload official college PDF files "
+        "and add them to the knowledge base."
     )
 
     uploaded_files = st.file_uploader(
-        "Upload college PDFs",
+        "Choose PDF documents",
         type=["pdf"],
         accept_multiple_files=True
     )
 
-    # Save PDF files
     if st.button(
-        "Save uploaded PDFs",
+        "💾 Save Uploaded PDFs",
         use_container_width=True
     ):
 
         if not uploaded_files:
-
             st.warning("Please select at least one PDF.")
 
         else:
-
             saved = save_uploaded_files(uploaded_files)
 
             st.success(
-                f"Saved {len(saved)} PDF file(s) "
-                "in the documents folder."
+                f"{len(saved)} PDF file(s) saved successfully."
             )
 
-    # Process PDF documents
+    st.write("")
+
     if st.button(
-        "Process documents",
+        "⚡ Process Documents",
         type="primary",
         use_container_width=True
     ):
 
         try:
 
-            with st.spinner(
-                "Extracting, chunking and embedding PDF text..."
-            ):
+            with st.spinner("Processing documents..."):
 
                 result = ingest_documents()
 
             st.success(
-                f"Processing complete: "
-                f"{result['stored_chunks']} chunks stored. "
-                f"ChromaDB now contains "
-                f"{result['collection_count']} chunks."
+                f"Successfully processed "
+                f"{result['stored_chunks']} chunks."
             )
 
             if result["skipped_files"]:
@@ -324,7 +406,7 @@ with st.sidebar:
                 st.warning(
                     "No selectable text found in: "
                     + ", ".join(result["skipped_files"])
-                    + ". These may be scanned PDFs and need OCR."
+                    + ". OCR may be required."
                 )
 
         except Exception as exc:
@@ -333,34 +415,62 @@ with st.sidebar:
 
     st.divider()
 
-    # Database status
-    st.subheader("Database status")
+    st.markdown("### 📊 Knowledge Base")
 
     try:
 
+        count = get_collection().count()
+
         st.metric(
-            "Stored text chunks",
-            get_collection().count()
+            "Stored Text Chunks",
+            count,
+            delta="Connected"
         )
 
     except Exception:
 
-        st.metric("Stored text chunks", 0)
+        st.metric("Stored Text Chunks", 0)
 
-    st.caption(
-        "Only upload official documents that the college "
-        "is authorized to share."
-    )
+    st.markdown("""
+    <div style="
+        background:rgba(255,255,255,0.08);
+        border-radius:12px;
+        padding:14px;
+        margin-top:20px;
+        font-size:12px;
+        color:#DDD6FE;
+        line-height:1.7;
+    ">
+        🔒 <b>Admin Notice</b><br>
+        Only upload official documents
+        that the college is authorized to share.
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # --------------------------------------------------
-# CHAT HISTORY
+# CHAT SECTION
 # --------------------------------------------------
+
+st.markdown("""
+<h2 style="font-size:25px;">
+    💬 Ask Your Admission Questions
+</h2>
+
+<p style="color:#77748F; font-size:14px;">
+    Chat with our AI assistant to get information
+    from official Indala College documents.
+</p>
+""", unsafe_allow_html=True)
+
+
+# Initialize chat history
 
 if "messages" not in st.session_state:
-
     st.session_state.messages = []
 
+
+# Display previous messages
 
 for message in st.session_state.messages:
 
@@ -370,22 +480,22 @@ for message in st.session_state.messages:
 
         if message.get("sources"):
 
-            with st.expander("View source documents"):
+            with st.expander("📄 View source documents"):
 
                 for source in message["sources"]:
 
                     st.write(
-                        f"**{source['source']}** "
+                        f"📘 **{source['source']}** "
                         f"— Page {source['page']}"
                     )
 
 
 # --------------------------------------------------
-# USER QUESTION AND ANSWER
+# CHAT INPUT
 # --------------------------------------------------
 
 question = st.chat_input(
-    "Ask an admission-related question..."
+    "Ask anything about admissions..."
 )
 
 
@@ -406,9 +516,8 @@ if question:
 
         try:
 
-            # Retrieve relevant PDF document chunks
             with st.spinner(
-                "Searching official college documents..."
+                "🔍 Searching official college documents..."
             ):
 
                 matches = retrieve_context(
@@ -416,7 +525,6 @@ if question:
                     top_k=TOP_K
                 )
 
-            # Filter irrelevant document chunks
             relevant_matches = [
                 item
                 for item in matches
@@ -430,9 +538,8 @@ if question:
 
             else:
 
-                # Generate answer using Groq
                 with st.spinner(
-                    "Generating answer using Groq AI..."
+                    "🤖 Preparing your answer..."
                 ):
 
                     answer = generate_answer(
@@ -440,7 +547,6 @@ if question:
                         relevant_matches
                     )
 
-                # Collect unique source documents and pages
                 unique_sources = []
                 seen = set()
 
@@ -455,38 +561,31 @@ if question:
 
                         seen.add(key)
 
-                        unique_sources.append(
-                            {
-                                "source": item["source"],
-                                "page": item["page"]
-                            }
-                        )
+                        unique_sources.append({
+                            "source": item["source"],
+                            "page": item["page"]
+                        })
 
                 sources = unique_sources
 
-            # Display answer
             st.markdown(answer)
 
-            # Display source references
             if sources:
 
-                with st.expander("View source documents"):
+                with st.expander("📄 View source documents"):
 
                     for source in sources:
 
                         st.write(
-                            f"**{source['source']}** "
+                            f"📘 **{source['source']}** "
                             f"— Page {source['page']}"
                         )
 
-            # Save assistant response
-            st.session_state.messages.append(
-                {
-                    "role": "assistant",
-                    "content": answer,
-                    "sources": sources
-                }
-            )
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": answer,
+                "sources": sources
+            })
 
         except Exception as exc:
 
@@ -496,20 +595,38 @@ if question:
 
             st.error(error_message)
 
-            st.session_state.messages.append(
-                {
-                    "role": "assistant",
-                    "content": error_message,
-                    "sources": []
-                }
-            )
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": error_message,
+                "sources": []
+            })
 
 
 # --------------------------------------------------
 # FOOTER
 # --------------------------------------------------
 
-st.caption(
-    "For official confirmation of admission details, "
-    "please contact the Indala College Admission Office."
-)
+st.markdown("""
+<div class="footer">
+
+    <div style="font-size:22px;">🎓</div>
+
+    <b style="color:#312E81;">
+        Indala College
+    </b>
+
+    <p>
+        AI-Powered Admission Assistance System
+    </p>
+
+    <p>
+        For official confirmation of admission details,
+        please contact the Indala College Admission Office.
+    </p>
+
+    <p style="font-size:11px;">
+        © Indala College | Powered by AI & RAG Technology
+    </p>
+
+</div>
+""", unsafe_allow_html=True)
